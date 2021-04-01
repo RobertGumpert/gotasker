@@ -1,68 +1,67 @@
 package tasker
 
-import (
-	"github.com/RobertGumpert/gotasker/interfaces"
-)
+import "github.com/RobertGumpert/gotasker/itask"
 
-type implementTask struct {
-	t                      interfaces.Type
-	ownKeyTask             string
+type taskerTask struct {
+	t                      itask.Type
+	key                    string
 	isTrigger, isDependent bool
 	//
-	event      interfaces.EventRunTask
-	state      interfaces.IState
-	trigger    interfaces.ITask
-	dependents []interfaces.ITask
+	eventRunTask itask.EventRunTask
+	state        itask.IState
+	trigger      itask.ITask
+	dependents   []itask.ITask
 }
 
-func (task *implementTask) SetEventRunTask(event interfaces.EventRunTask) {
-	task.event = event
+func (task *taskerTask) SetEventRunTask(event itask.EventRunTask) {
+	task.eventRunTask = event
 }
 
-func (task *implementTask) GetEventRunTask() (event interfaces.EventRunTask) {
-	return task.event
+func (task *taskerTask) GetEventRunTask() (event itask.EventRunTask) {
+	return task.eventRunTask
 }
 
-func (task *implementTask) SetState(state interfaces.IState) {
+func (task *taskerTask) SetState(state itask.IState) {
 	task.state = state
 }
 
-func (task *implementTask) GetState() (state interfaces.IState) {
+func (task *taskerTask) GetState() (state itask.IState) {
 	return task.state
 }
 
-func (task *implementTask) SetType(t interfaces.Type) {
+func (task *taskerTask) SetType(t itask.Type) {
 	task.t = t
 }
 
-func (task *implementTask) GetType() (t interfaces.Type) {
+func (task *taskerTask) GetType() (t itask.Type) {
 	return task.t
 }
 
-func (task *implementTask) SetKey(key string) {
-	task.ownKeyTask = key
+func (task *taskerTask) SetKey(key string) {
+	task.key = key
 }
 
-func (task *implementTask) GetKey() (key string) {
-	return task.ownKeyTask
+func (task *taskerTask) GetKey() (key string) {
+	return task.key
 }
 
-func (task *implementTask) DoAsTrigger(dependent []interfaces.ITask) {
+func (task *taskerTask) ModifyTaskAsTrigger(dependent []itask.ITask) {
 	for t := 0; t < len(dependent); t++ {
-		dependent[t].DoAsDependent(task)
+		dependent[t].ModifyTaskAsDependent(task)
 	}
 	task.isTrigger = true
+	task.dependents = dependent
 }
 
-func (task *implementTask) IsTrigger() (flag bool, dependent []interfaces.ITask) {
+func (task *taskerTask) IsTrigger() (flag bool, dependent []itask.ITask) {
 	return task.isTrigger, task.dependents
 }
 
-func (task *implementTask) DoAsDependent(trigger interfaces.ITask) {
-	task.trigger = trigger
+func (task *taskerTask) ModifyTaskAsDependent(trigger itask.ITask) {
 	task.isDependent = true
+	task.trigger = trigger
 }
 
-func (task *implementTask) IsDependent() (flag bool, trigger interfaces.ITask) {
-	return task.isDependent, trigger
+func (task *taskerTask) IsDependent() (flag bool, trigger itask.ITask) {
+	return task.isDependent, task.trigger
 }

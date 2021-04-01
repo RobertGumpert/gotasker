@@ -1,68 +1,74 @@
 package tasker
 
-import (
-	"github.com/RobertGumpert/gotasker/interfaces"
-)
+import "github.com/RobertGumpert/gotasker/itask"
 
-type implementState struct {
-	runnable, execute, def bool
-	result, fields interface{}
-	event interfaces.EventUpdateState
-	err error
+type taskerState struct {
+	runnable, execute, def       bool
+	result, fields, send, update interface{}
+	eventUpdateTaskState         itask.EventUpdateTaskState
+	err                          error
 }
 
-func (state *implementState) SetEventUpdateState(event interfaces.EventUpdateState) {
-	state.event = event
+func (state *taskerState) SetSendContext(send interface{}) {
+	state.send = send
 }
 
-func (state *implementState) GetEventUpdateState() (event interfaces.EventUpdateState) {
-	return state.event
+func (state *taskerState) GetSendContext() (send interface{}) {
+	return state.send
 }
 
-func (state *implementState) SetRunnable(flag bool) {
+func (state *taskerState) SetUpdateContext(update interface{}) {
+	state.update = update
+}
+
+func (state *taskerState) GetUpdateContext() (update interface{}) {
+	return state.update
+}
+
+func (state *taskerState) SetEventUpdateState(event itask.EventUpdateTaskState) {
+	state.eventUpdateTaskState = event
+}
+
+func (state *taskerState) GetEventUpdateState() (event itask.EventUpdateTaskState) {
+	return state.eventUpdateTaskState
+}
+
+func (state *taskerState) SetRunnable(flag bool) {
 	state.runnable = flag
 }
 
-func (state *implementState) IsRunnable() (flag bool) {
+func (state *taskerState) IsRunnable() (flag bool) {
 	return state.runnable
 }
 
-func (state *implementState) SetExecute(flag bool) {
+func (state *taskerState) SetExecute(flag bool) {
 	state.execute = flag
 }
 
-func (state *implementState) IsExecute() (flag bool) {
+func (state *taskerState) IsExecute() (flag bool) {
 	return state.execute
 }
 
-func (state *implementState) SetDefer(flag bool) {
+func (state *taskerState) SetDefer(flag bool) {
 	state.def = flag
 }
 
-func (state *implementState) IsDefer() (flag bool) {
+func (state *taskerState) IsDefer() (flag bool) {
 	return state.def
 }
 
-func (state *implementState) SetResult(result interface{}) {
-	state.result = result
-}
-
-func (state *implementState) GetResult() (result interface{}) {
-	return state.result
-}
-
-func (state *implementState) SetCustomFields(fields interface{}) {
+func (state *taskerState) SetCustomFields(fields interface{}) {
 	state.fields = fields
 }
 
-func (state *implementState) GetCustomFields() (fields interface{}) {
+func (state *taskerState) GetCustomFields() (fields interface{}) {
 	return state.fields
 }
 
-func (state *implementState) SetError(err error) {
+func (state *taskerState) SetError(err error) {
 	state.err = err
 }
 
-func (state *implementState) GetError() (err error) {
+func (state *taskerState) GetError() (err error) {
 	return state.err
 }

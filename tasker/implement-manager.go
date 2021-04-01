@@ -2,220 +2,257 @@ package tasker
 
 import (
 	"github.com/RobertGumpert/gotasker"
-	"github.com/RobertGumpert/gotasker/interfaces"
+	"github.com/RobertGumpert/gotasker/itask"
 	"log"
+	"sync"
+	"time"
 )
 
-type implementManager struct {
-	size    int64
-	tasks   []interfaces.ITask
-	channel chan interfaces.ITask
-	event   interfaces.EventManageTasks
+type TaskerQueueManager struct {
+	size                     int64
+	timeout                  time.Duration
+	completedTasks           []itask.ITask
+	queueTasks               []itask.ITask
+	channelForCompletedTasks chan itask.ITask
+	mx                       *sync.Mutex
+	eventManageTasks         itask.EventManageTasks
 }
 
-func newImplementManager(size int64, event interfaces.EventManageTasks) *implementManager {
-	manager := &implementManager{
-		size:    size,
-		event:   event,
-		channel: make(chan interfaces.ITask),
-		tasks:   make([]interfaces.ITask, 0),
-	}
-	go manager.ScanChannelCompletedTasks()
+func newQueueManager(size int64, timeout time.Duration, eventManageTasks itask.EventManageTasks) *TaskerQueueManager {
+	manager := new(TaskerQueueManager)
+	manager.size = size
+	manager.timeout = timeout
+	manager.eventManageTasks = eventManageTasks
+	manager.queueTasks = make([]itask.ITask, 0)
+	manager.completedTasks = make([]itask.ITask, 0)
+	manager.channelForCompletedTasks = make(chan itask.ITask)
+	manager.mx = new(sync.Mutex)
+	go manager.ManageCompletedTasks()
+	go manager.RunDeferByTimer()
 	return manager
 }
 
-func (manager *implementManager) SetEventManageTasks(event interfaces.EventManageTasks) {
-	manager.event = event
+func (manager *TaskerQueueManager) UseTimeoutForRunning(timeout time.Duration) {
+	manager.timeout = timeout
 }
 
-func (manager *implementManager) GetEventManageTasks() (event interfaces.EventManageTasks) {
-	return manager.event
+func (manager *TaskerQueueManager) SetEventManageTasks(event itask.EventManageTasks) {
+	manager.eventManageTasks = event
 }
 
-func (manager *implementManager) SetSizeQueue(size int64) {
+func (manager *TaskerQueueManager) GetEventManageTasks() (event itask.EventManageTasks) {
+	return manager.eventManageTasks
+}
+
+func (manager *TaskerQueueManager) SetSizeQueue(size int64) {
 	manager.size = size
 }
 
-func (manager *implementManager) GetSizeQueue() (size int64) {
+func (manager *TaskerQueueManager) GetSizeQueue() (size int64) {
 	return manager.size
 }
 
-func (manager *implementManager) GetTask(key string) (task interfaces.ITask, err error) {
-	for t := 0; t < len(manager.tasks); t++ {
-		if manager.tasks[t].GetKey() == key {
-			return manager.tasks[t], nil
+func (manager *TaskerQueueManager) CreateTask(t itask.Type, key string, send, update, fields interface{}, eventRunTask itask.EventRunTask, eventUpdateState itask.EventUpdateTaskState) (task itask.ITask, err error) {
+	if int64(len(manager.queueTasks)) == manager.size {
+		return nil, gotasker.ErrorQueueIsFilled
+	}
+	state := &taskerState{
+		send:                 send,
+		update:               update,
+		fields:               fields,
+		eventUpdateTaskState: eventUpdateState,
+	}
+	return &taskerTask{
+		t:            t,
+		key:          key,
+		eventRunTask: eventRunTask,
+		state:        state,
+	}, nil
+}
+
+func (manager *TaskerQueueManager) ModifyTaskAsTrigger(trigger itask.ITask, dependents ...itask.ITask) (task itask.ITask, err error) {
+	if int64(len(manager.queueTasks)+len(dependents)) == manager.size {
+		return nil, gotasker.ErrorQueueIsFilled
+	}
+	for t := 0; t < len(dependents); t++ {
+		dependents[t].ModifyTaskAsDependent(trigger)
+		dependents[t].GetState().SetDefer(true)
+		dependents[t].GetState().SetRunnable(false)
+	}
+	trigger.ModifyTaskAsTrigger(dependents)
+	return trigger, nil
+}
+
+func (manager *TaskerQueueManager) DeleteTasksByKeys(keys map[string]struct{}) {
+	if len(keys) == 0 {
+		return
+	}
+	slice := make([]itask.ITask, 0)
+	for t := 0; t < len(manager.queueTasks); t++ {
+		task := manager.queueTasks[t]
+		if _, exist := keys[task.GetKey()]; exist == false {
+			slice = append(slice, manager.queueTasks[t])
+		}
+	}
+	manager.queueTasks = slice
+	return
+}
+
+func (manager *TaskerQueueManager) FindTasksByKeys(keys map[string]struct{}) (findTasks []itask.ITask) {
+	findTasks = make([]itask.ITask, 0)
+	if len(keys) == 0 {
+		return findTasks
+	}
+	for t := 0; t < len(manager.queueTasks); t++ {
+		task := manager.queueTasks[t]
+		if _, ok := keys[task.GetKey()]; ok {
+			findTasks = append(findTasks, task)
+		}
+	}
+	return findTasks
+}
+
+func (manager *TaskerQueueManager) FindTaskByKey(key string) (findTask itask.ITask, err error) {
+	if key == "" {
+		return nil, gotasker.ErrorTaskIsNotExist
+	}
+	for t := 0; t < len(manager.queueTasks); t++ {
+		task := manager.queueTasks[t]
+		if task.GetKey() == key {
+			return task, nil
 		}
 	}
 	return nil, gotasker.ErrorTaskIsNotExist
 }
 
-func (manager *implementManager) ScanChannelCompletedTasks() {
-	var (
-		deleteTask = func(key string) {
-			i := -1
-			for t := 0; t < len(manager.tasks); t++ {
-				if manager.tasks[t].GetKey() == key {
-					i = t
-				}
-			}
-			if i == -1 {
-				log.Println("\t\t\t->GOTASKER: SCAN CHANNEL HAVE ERROR: ", gotasker.ErrorTaskIsNotExist)
-			} else {
-				manager.tasks[i] = manager.tasks[len(manager.tasks)-1]
-				manager.tasks[len(manager.tasks)-1] = nil
-				manager.tasks = manager.tasks[:len(manager.tasks)-1]
-			}
-		}
-	)
-	for task := range manager.channel {
-		log.Println("GOTASKER: SCAN CHANNEL GETTING EXECUTE TASK...")
-		keysTasksForDelete := manager.event(task)
-		if len(keysTasksForDelete) != 0 {
-			for key := 0; key < len(keysTasksForDelete); key++ {
-				deleteTask(keysTasksForDelete[key])
-			}
-		} else {
-			if isTrigger, _ := task.IsTrigger(); isTrigger == true {
-				err := manager.RunDependentTasks(task)
-				if err != nil {
-					log.Println("\t\t\t->GOTASKER: SCAN CHANNEL HAVE ERROR: ", err)
-				}
-			}
-		}
-		manager.RunDeferTasks()
-		log.Println("GOTASKER: SCAN CHANNEL WAIT NEXT")
-	}
-}
-
-func (manager *implementManager) RunDeferTasks() {
-	log.Println("GOTASKER: RUN DEFER...")
-	for t := 0; t < len(manager.tasks); t++ {
-		task := manager.tasks[t]
-		if task.GetState().IsExecute() {
-			continue
-		}
-		if isDependent, _ := task.IsDependent(); isDependent == true {
-			continue
-		}
-		if task.GetState().IsRunnable() == true {
-			continue
-		}
-		if task.GetState().IsDefer() == false {
-			continue
-		}
-		if err := task.GetEventRunTask()(task); err == nil {
-			task.GetState().SetRunnable(true)
-			log.Println("\t\t\t->GOTASKER: TASK KEY [", task.GetKey(), "] IS RUN")
-		}
-	}
-	log.Println("GOTASKER: FINISH RUN DEFER")
-}
-
-func (manager *implementManager) RunDependentTasks(trigger interfaces.ITask) (err error) {
-	log.Println("GOTASKER: RUN DEPENDENTS FOR TRIGGER TASK KEY [", trigger.GetKey(), "]...")
-	flag, dependents := trigger.IsTrigger()
-	if !flag {
-		return gotasker.ErrorTaskIsNotExist
-	}
-	if !trigger.GetState().IsExecute() {
-		return gotasker.ErrorTriggerNotExecute
-	}
-	for t := 0; t < len(dependents); t++ {
-		task := dependents[t]
-		if task.GetState().IsExecute() {
-			continue
-		}
-		if isDependent, _ := task.IsDependent(); isDependent == false {
-			continue
-		}
-		if task.GetState().IsRunnable() == true {
-			continue
-		}
-		if err := task.GetEventRunTask()(task); err == nil {
-			task.GetState().SetRunnable(true)
-			log.Println("\t\t\t->GOTASKER: TASK KEY [", task.GetKey(), "] IS RUN")
-		}
-	}
-	log.Println("GOTASKER: FINISH DEPENDENTS FOR TRIGGER TASK KEY [", trigger.GetKey(), "]")
-	return err
-}
-
-func (manager *implementManager) CreateTask(t interfaces.Type, key string, result, fields interface{}, eventRunTask interfaces.EventRunTask, eventUpdateState interfaces.EventUpdateState) (task interfaces.ITask, err error) {
-	if int64(len(manager.tasks)) == manager.size {
-		return nil, gotasker.ErrorQueueIsFilled
-	}
-	state := &implementState{
-		result: result,
-		fields: fields,
-		event:  eventUpdateState,
-	}
-	return &implementTask{
-		t:          t,
-		ownKeyTask: key,
-		event:      eventRunTask,
-		state:      state,
-	}, nil
-}
-
-func (manager *implementManager) ModifyTaskAsTrigger(trigger interfaces.ITask, dependents ...interfaces.ITask) (task interfaces.ITask, err error) {
-	if int64(len(manager.tasks)+(len(dependents)+1)) == manager.size {
-		return nil, gotasker.ErrorQueueIsFilled
-	}
-	for t := 0; t < len(dependents); t++ {
-		dependents[t].DoAsDependent(trigger)
-		dependents[t].GetState().SetDefer(true)
-		dependents[t].GetState().SetRunnable(false)
-	}
-	trigger.DoAsTrigger(dependents)
-	return trigger, nil
-}
-
-func (manager *implementManager) Add(task interfaces.ITask) (err error) {
-	var count int64 = 1
-	flag, dependents := task.IsTrigger()
-	if !flag {
-		if int64(len(manager.tasks)) == manager.size {
-			return gotasker.ErrorQueueIsFilled
-		}
-	} else {
-		count += int64(len(dependents))
-		if int64(len(manager.tasks))+count == manager.size {
-			return gotasker.ErrorQueueIsFilled
-		}
-	}
-	log.Println("GOTASKER: ADD TASK [",task.GetKey(),"]...")
-	manager.tasks = append(manager.tasks, task)
-	errRunning := task.GetEventRunTask()(task)
-	if errRunning != nil {
-		log.Println("\t\t\t->GOTASKER: TASK IS RUN [",task.GetKey(),"]")
-		task.GetState().SetRunnable(true)
-		task.GetState().SetDefer(false)
-	} else {
-		log.Println("\t\t\t->GOTASKER: TASK IS DEFER [",task.GetKey(),"]")
-		task.GetState().SetRunnable(false)
-		task.GetState().SetDefer(true)
-	}
-	log.Println("GOTASKER: ADD TASK [",task.GetKey(),"].")
-	return nil
-}
-
-func (manager *implementManager) UpdateTaskStateExecute(key string, result interface{}) (err error) {
-	log.Println("GOTASKER: UPDATE TASK STATE [",key,"]...")
-	task, err := manager.GetTask(key)
+func (manager *TaskerQueueManager) UpdateTask(key string, updateContext interface{}) (err error) {
+	manager.mx.Lock()
+	defer manager.mx.Unlock()
+	//
+	task, err := manager.FindTaskByKey(key)
 	if err != nil {
 		return err
 	}
-	err = task.GetState().GetEventUpdateState()(task, result)
+	eventUpdateTask := task.GetState().GetEventUpdateState()
+	if eventUpdateTask == nil {
+		return gotasker.ErrorTaskIsNotExist
+	}
+	err = eventUpdateTask(task, updateContext)
 	if err != nil {
-		log.Println("\t\t\t->GOTASKER: UPDATE TASK STATE [",key,"] HAVE ERR: ", err)
 		return err
 	}
 	if task.GetState().IsExecute() {
-		task.GetState().SetExecute(true)
-		go func(manager *implementManager, task interfaces.ITask) {
-			manager.channel <- task
-		}(manager, task)
+		log.Println("-> GOTASKER: TASK COMPLETED [", task.GetKey(), "] START WRITE TO CHANNEL...")
+		manager.channelForCompletedTasks <- task
+		log.Println("<- GOTASKER: TASK COMPLETED [", task.GetKey(), "] FINISH WRITE TO CHANNEL...")
 	}
-	log.Println("GOTASKER: UPDATE TASK STATE [",key,"].")
 	return nil
+}
+
+func (manager *TaskerQueueManager) ManageCompletedTasks() {
+	for task := range manager.channelForCompletedTasks {
+		tasksKeysForDelete, tasksKeysForSaving := manager.eventManageTasks(task)
+		if isTrigger, _ := task.IsTrigger(); isTrigger {
+			manager.RunDependentTasks(task)
+		}
+		if len(tasksKeysForSaving) != 0 {
+			tasksForSaving := manager.FindTasksByKeys(tasksKeysForSaving)
+			manager.completedTasks = append(manager.completedTasks, tasksForSaving...)
+		}
+		if len(tasksKeysForDelete) != 0 {
+			log.Println(tasksKeysForDelete)
+			manager.DeleteTasksByKeys(tasksKeysForDelete)
+		}
+		if len(manager.queueTasks) == 0 {
+			log.Println("->+++++++++++GOTASKER: QUEUE IS EMPTY. READY GETTING NEXT TASKS+++++++++++")
+		} else {
+			manager.RunDeferTasks()
+		}
+	}
+}
+
+func (manager *TaskerQueueManager) RunTask(task itask.ITask) (err error) {
+	flag, dependents := task.IsTrigger()
+	if !flag {
+		if int64(len(manager.queueTasks)) == manager.size {
+			return gotasker.ErrorQueueIsFilled
+		}
+	} else {
+		if int64(len(manager.queueTasks)+len(dependents)) == manager.size {
+			return gotasker.ErrorQueueIsFilled
+		}
+		manager.queueTasks = append(manager.queueTasks, dependents...)
+	}
+	log.Println("-> GOTASKER: START ADD TASK [", task.GetKey(), "]-----------------------------------------------------")
+	manager.queueTasks = append(manager.queueTasks, task)
+	errRunning := task.GetEventRunTask()(task)
+	if errRunning == nil {
+		log.Println("\t\t\t:GOTASKER: TASK IS RUN [", task.GetKey(), "]")
+		task.GetState().SetRunnable(true)
+		task.GetState().SetDefer(false)
+	} else {
+		log.Println("\t\t\t:GOTASKER: TASK IS DEFER [", task.GetKey(), "]")
+		task.GetState().SetRunnable(false)
+		task.GetState().SetDefer(true)
+	}
+	log.Println("<- GOTASKER: FINISH ADD TASK [", task.GetKey(), "]----------------------------------------------------")
+	return nil
+}
+
+func (manager *TaskerQueueManager) RunDeferTasks() {
+	for t := 0; t < len(manager.queueTasks); t++ {
+		if manager.queueTasks[t].GetState().IsExecute() {
+			continue
+		}
+		if isDependent, trigger := manager.queueTasks[t].IsDependent(); isDependent == true {
+			if trigger == nil {
+				log.Println()
+				continue
+			}
+			if trigger.GetState().IsExecute() == false {
+				continue
+			}
+		}
+		if manager.queueTasks[t].GetState().IsRunnable() == true {
+			continue
+		}
+		if manager.queueTasks[t].GetState().IsDefer() == false {
+			continue
+		}
+		if err := manager.queueTasks[t].GetEventRunTask()(manager.queueTasks[t]); err == nil {
+			manager.queueTasks[t].GetState().SetRunnable(true)
+			log.Println("\t\t\t->GOTASKER: DEFER TASK KEY [", manager.queueTasks[t].GetKey(), "] IS RUN")
+		}
+	}
+}
+
+func (manager *TaskerQueueManager) RunDependentTasks(task itask.ITask) {
+	if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
+		for d := 0; d < len(dependentsTasks); d++ {
+			if isDependent, _ := dependentsTasks[d].IsDependent(); isDependent {
+				if dependentsTasks[d].GetState().IsExecute() {
+					continue
+				}
+				if dependentsTasks[d].GetState().IsRunnable() {
+					continue
+				}
+				if err := dependentsTasks[d].GetEventRunTask()(dependentsTasks[d]); err == nil {
+					dependentsTasks[d].GetState().SetRunnable(true)
+					log.Println("\t\t\t->GOTASKER: DEPENDENT TASK KEY [", dependentsTasks[d].GetKey(), "] IS RUN")
+				}
+			}
+		}
+	}
+	return
+}
+
+func (manager *TaskerQueueManager) RunDeferByTimer() {
+	for {
+		if len(manager.queueTasks) == 0 {
+			log.Println("->+++++++++++GOTASKER: QUEUE IS EMPTY. READY GETTING NEXT TASKS+++++++++++")
+		} else {
+			manager.RunDeferTasks()
+		}
+		time.Sleep(manager.timeout)
+	}
 }
