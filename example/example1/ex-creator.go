@@ -13,6 +13,7 @@ import (
 type TaskCreator struct {
 	executor *TaskExecutor
 	steward  *tasker.TaskerQueueSteward
+	res      map[string]int
 }
 
 type TaskerUpdateContext struct {
@@ -24,6 +25,7 @@ type TaskerUpdateContext struct {
 func NewTaskCreator(size int64, timeout time.Duration) *TaskCreator {
 	creator := new(TaskCreator)
 	creator.executor = &TaskExecutor{gettingResult: creator.gettingUpdates}
+	creator.res = make(map[string]int)
 	creator.steward = tasker.NewSteward(
 		size,
 		timeout,
@@ -208,16 +210,32 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 		case AddNumbers:
 			if task.GetState().IsExecute() {
 				deleteTasks[task.GetKey()] = struct{}{}
+				if _, exist := creator.res[task.GetKey()]; exist {
+					panic("RESULT IS EXIST: "+ task.GetKey())
+				} else {
+					creator.res[task.GetKey()] = 0
+				}
 			}
 			break
 		case MultiplyNumbers:
 			if task.GetState().IsExecute() {
 				deleteTasks[task.GetKey()] = struct{}{}
+				if _, exist := creator.res[task.GetKey()]; exist {
+					panic("RESULT IS EXIST: "+ task.GetKey())
+				} else {
+					creator.res[task.GetKey()] = 0
+				}
 			}
 			break
 		}
 	} else {
 		if isDependent {
+			if _, exist := creator.res[task.GetKey()]; exist {
+				panic("RESULT IS EXIST: "+ task.GetKey())
+			} else {
+				creator.res[task.GetKey()] = 0
+			}
+			//
 			count := 0
 			_, dependents = trigger.IsTrigger()
 			for _, dependent := range dependents {
@@ -229,6 +247,11 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 			if count == len(dependents) {
 				deleteTasks[trigger.GetKey()] = struct{}{}
 				log.Println("-> TaskCreator: TRIGGER WAS COMPLETED ", trigger.GetKey(), " . ")
+				if _, exist := creator.res[trigger.GetKey()]; exist {
+					panic("RESULT IS EXIST: "+ task.GetKey())
+				} else {
+					creator.res[trigger.GetKey()] = 0
+				}
 			} else {
 				deleteTasks = nil
 			}
@@ -239,10 +262,14 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 }
 
 func (creator *TaskCreator) gettingUpdates(st *InterProgramUpdateContext) {
-	go func(creator *TaskCreator, st *InterProgramUpdateContext) {
-		err := creator.steward.UpdateTask(st.Key, st)
-		if err != nil {
-			log.Println("++++++++++++++++GETTING UPDATES WITH ERROR [", st.Key, "]: ", err)
-		}
-	}(creator, st)
+	err := creator.steward.UpdateTask(st.Key, st)
+	if err != nil {
+		log.Println("++++++++++++++++GETTING UPDATES WITH ERROR [", st.Key, "]: ", err)
+	}
+	//go func(creator *TaskCreator, st *InterProgramUpdateContext) {
+	//	err := creator.steward.UpdateTask(st.Key, st)
+	//	if err != nil {
+	//		log.Println("++++++++++++++++GETTING UPDATES WITH ERROR [", st.Key, "]: ", err)
+	//	}
+	//}(creator, st)
 }

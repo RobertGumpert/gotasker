@@ -8,7 +8,7 @@ import (
 type TaskConstructor func() (task itask.ITask, err error)
 
 type TaskerQueueSteward struct {
-	manager *TaskerQueueManager
+	manager *taskerQueueManager
 }
 
 func NewSteward(size int64, timeout time.Duration, eventManageTasks itask.EventManageTasks) *TaskerQueueSteward {
