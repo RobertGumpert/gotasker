@@ -19,6 +19,14 @@ func NewSteward(sizeOfQueue int64, timeoutForRunWithTimer time.Duration, eventMa
 	return steward
 }
 
+func (steward *Steward) CanAddTask(countTasks int64) (havePlaceInQueue bool) {
+	if (int64(len(steward.manager.sliceTasksInQueue)) + countTasks) < steward.manager.GetSizeQueue() {
+		return true
+	} else {
+		return false
+	}
+}
+
 func (steward *Steward) CreateTask(taskType itask.Type, taskKey string, taskSendContext, taskUpdateContext, taskCustomFieldContext interface{}, eventRunTask itask.EventRunTask, eventUpdateState itask.EventUpdateTaskState) itask.TaskConstructor {
 	return func() (task itask.ITask, err error) {
 		return steward.manager.CreateTask(
