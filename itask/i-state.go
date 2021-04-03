@@ -6,8 +6,8 @@ type IState interface {
 	SetRunnable(flag bool)
 	IsRunnable() (flag bool)
 	//
-	SetExecute(flag bool)
-	IsExecute() (flag bool)
+	SetCompleted(flag bool)
+	IsCompleted() (flag bool)
 	//
 	SetDefer(flag bool)
 	IsDefer() (flag bool)

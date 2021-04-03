@@ -2,73 +2,73 @@ package tasker
 
 import "github.com/RobertGumpert/gotasker/itask"
 
-type taskerState struct {
-	runnable, execute, def       bool
-	result, fields, send, update interface{}
-	eventUpdateTaskState         itask.EventUpdateTaskState
-	err                          error
+type implementStateInterface struct {
+	isRunnable, isCompleted, isDefer                bool
+	customFieldsContext, sendContext, updateContext interface{}
+	eventUpdateTaskState                            itask.EventUpdateTaskState
+	err                                             error
 }
 
-func (state *taskerState) SetSendContext(send interface{}) {
-	state.send = send
+func (state *implementStateInterface) SetSendContext(send interface{}) {
+	state.sendContext = send
 }
 
-func (state *taskerState) GetSendContext() (send interface{}) {
-	return state.send
+func (state *implementStateInterface) GetSendContext() (send interface{}) {
+	return state.sendContext
 }
 
-func (state *taskerState) SetUpdateContext(update interface{}) {
-	state.update = update
+func (state *implementStateInterface) SetUpdateContext(update interface{}) {
+	state.updateContext = update
 }
 
-func (state *taskerState) GetUpdateContext() (update interface{}) {
-	return state.update
+func (state *implementStateInterface) GetUpdateContext() (update interface{}) {
+	return state.updateContext
 }
 
-func (state *taskerState) SetEventUpdateState(event itask.EventUpdateTaskState) {
+func (state *implementStateInterface) SetEventUpdateState(event itask.EventUpdateTaskState) {
 	state.eventUpdateTaskState = event
 }
 
-func (state *taskerState) GetEventUpdateState() (event itask.EventUpdateTaskState) {
+func (state *implementStateInterface) GetEventUpdateState() (event itask.EventUpdateTaskState) {
 	return state.eventUpdateTaskState
 }
 
-func (state *taskerState) SetRunnable(flag bool) {
-	state.runnable = flag
+func (state *implementStateInterface) SetRunnable(flag bool) {
+	state.isRunnable = flag
 }
 
-func (state *taskerState) IsRunnable() (flag bool) {
-	return state.runnable
+func (state *implementStateInterface) IsRunnable() (flag bool) {
+	return state.isRunnable
 }
 
-func (state *taskerState) SetExecute(flag bool) {
-	state.execute = flag
+func (state *implementStateInterface) SetCompleted(flag bool) {
+	state.isCompleted = flag
 }
 
-func (state *taskerState) IsExecute() (flag bool) {
-	return state.execute
+func (state *implementStateInterface) IsCompleted() (flag bool) {
+	return state.isCompleted
 }
 
-func (state *taskerState) SetDefer(flag bool) {
-	state.def = flag
+func (state *implementStateInterface) SetDefer(flag bool) {
+	state.isDefer = flag
 }
 
-func (state *taskerState) IsDefer() (flag bool) {
-	return state.def
+func (state *implementStateInterface) IsDefer() (flag bool) {
+	return state.isDefer
 }
 
-func (state *taskerState) SetCustomFields(fields interface{}) {
-	state.fields = fields
+func (state *implementStateInterface) SetCustomFields(fields interface{}) {
+	state.customFieldsContext = fields
 }
 
-func (state *taskerState) GetCustomFields() (fields interface{}) {
-	return state.fields
+func (state *implementStateInterface) GetCustomFields() (fields interface{}) {
+	return state.customFieldsContext
 }
 
-func (state *taskerState) SetError(err error) {
+func (state *implementStateInterface) SetError(err error) {
 	state.err = err
 }
 
-func (state *taskerState) GetError() (err error) {
+func (state *implementStateInterface) GetError() (err error) {
 	return state.err
 }

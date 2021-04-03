@@ -12,7 +12,7 @@ import (
 
 type TaskCreator struct {
 	executor *TaskExecutor
-	steward  *tasker.TaskerQueueSteward
+	steward  *tasker.Steward
 	res      map[string]int
 }
 
@@ -183,7 +183,7 @@ func (creator *TaskCreator) eventRunTask(task itask.ITask) (err error) {
 func (creator *TaskCreator) eventUpdateTask(task itask.ITask, interProgramUpdateContext interface{}) (err error) {
 	cast := interProgramUpdateContext.(*InterProgramUpdateContext)
 	if cast.IsCompleted {
-		task.GetState().SetExecute(true)
+		task.GetState().SetCompleted(true)
 	}
 	context := task.GetState().GetUpdateContext().(*TaskerUpdateContext)
 	context.Result = append(context.Result, cast.Result)
@@ -208,7 +208,7 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 	if !isTrigger && !isDependent {
 		switch task.GetType() {
 		case AddNumbers:
-			if task.GetState().IsExecute() {
+			if task.GetState().IsCompleted() {
 				deleteTasks[task.GetKey()] = struct{}{}
 				if _, exist := creator.res[task.GetKey()]; exist {
 					panic("RESULT IS EXIST: "+ task.GetKey())
@@ -218,7 +218,7 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 			}
 			break
 		case MultiplyNumbers:
-			if task.GetState().IsExecute() {
+			if task.GetState().IsCompleted() {
 				deleteTasks[task.GetKey()] = struct{}{}
 				if _, exist := creator.res[task.GetKey()]; exist {
 					panic("RESULT IS EXIST: "+ task.GetKey())
@@ -239,7 +239,7 @@ func (creator *TaskCreator) eventManageTask(task itask.ITask) (deleteTasks, save
 			count := 0
 			_, dependents = trigger.IsTrigger()
 			for _, dependent := range dependents {
-				if dependent.GetState().IsExecute() {
+				if dependent.GetState().IsCompleted() {
 					deleteTasks[dependent.GetKey()] = struct{}{}
 					count++
 				}
