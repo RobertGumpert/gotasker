@@ -120,7 +120,7 @@ func (creator *TaskCreator) CreateTriggerTask(n1, n2 int) {
 		creator.eventRunTask,
 		creator.eventUpdateTask,
 	)
-	dependents := make([]tasker.TaskConstructor, 0)
+	dependents := make([]itask.TaskConstructor, 0)
 	for i := 0; i < 5; i++ {
 		key := strings.Join([]string{
 			"depedent-key-add",

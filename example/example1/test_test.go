@@ -41,3 +41,18 @@ func TestSimpleTrigger(t *testing.T) {
 	}
 	time.Sleep(1 *time.Hour)
 }
+
+func TestTriggerAndSimple(t *testing.T) {
+	count := 5
+	size := 100
+	timeout := 15 * time.Second
+	creator := NewTaskCreator(int64(size), timeout)
+	for i := 0; i < count; i++ {
+		creator.CreateTaskMultiplyNumbers(i, i)
+	}
+	for i := 0; i < count; i++ {
+		creator.CreateTriggerTask(i, i)
+	}
+	time.Sleep(1 *time.Hour)
+}
+

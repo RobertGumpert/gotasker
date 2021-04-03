@@ -33,6 +33,14 @@ func (steward *Steward) CreateTask(taskType itask.Type, taskKey string, taskSend
 	}
 }
 
+func (steward *Steward) RunTask(task itask.ITask) (err error) {
+	err = steward.manager.RunTask(task)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (steward *Steward) CreateTaskAndRun(constructor itask.TaskConstructor) (task itask.ITask, err error) {
 	task, err = constructor()
 	if err != nil {
@@ -45,7 +53,7 @@ func (steward *Steward) CreateTaskAndRun(constructor itask.TaskConstructor) (tas
 	return task, nil
 }
 
-func (steward *Steward) CreateTriggerAndRun(triggerConstructor itask.TaskConstructor, dependentConstructors ...itask.TaskConstructor) (trigger itask.ITask, err error) {
+func (steward *Steward) ModifyTaskAsTrigger(triggerConstructor itask.TaskConstructor, dependentConstructors ...itask.TaskConstructor) (trigger itask.ITask, err error) {
 	var (
 		dependents = make([]itask.ITask, 0)
 	)
@@ -67,6 +75,14 @@ func (steward *Steward) CreateTriggerAndRun(triggerConstructor itask.TaskConstru
 	if err != nil {
 		return nil, err
 	}
+	return trigger, nil
+}
+
+func (steward *Steward) CreateTriggerAndRun(triggerConstructor itask.TaskConstructor, dependentConstructors ...itask.TaskConstructor) (trigger itask.ITask, err error) {
+	trigger, err = steward.ModifyTaskAsTrigger(
+		triggerConstructor,
+		dependentConstructors...,
+	)
 	err = steward.manager.RunTask(trigger)
 	if err != nil {
 		return nil, err
