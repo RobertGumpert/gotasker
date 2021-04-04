@@ -351,12 +351,15 @@ func (manager *implementTaskManager) ManageUpdateTasks() {
 
 func (manager *implementTaskManager) ManageCompletedTasks() {
 	for task := range manager.channelForManageCompletedTasks {
+		var (
+			isTrigger bool
+		)
 		_, err := manager.FindTaskByKey(task.GetKey())
 		if err != nil {
 			continue
 		}
 		tasksKeysForDelete, tasksKeysForSaving := manager.eventManageTasks(task)
-		if isTrigger, _ := task.IsTrigger(); isTrigger {
+		if isTrigger, _ = task.IsTrigger(); isTrigger {
 			manager.RunDependentTasks(task)
 		}
 		if len(tasksKeysForSaving) != 0 {
@@ -370,8 +373,9 @@ func (manager *implementTaskManager) ManageCompletedTasks() {
 		if len(manager.sliceTasksInQueue) == 0 {
 			log.Println("->+++++++++++GOTASKER: QUEUE IS EMPTY. READY GETTING NEXT TASKS+++++++++++")
 		} else {
-			manager.RunDeferTasks()
+			if !isTrigger {
+				manager.RunDeferTasks()
+			}
 		}
 	}
 }
-
