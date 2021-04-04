@@ -1,6 +1,7 @@
 package tasker
 
 import (
+	"github.com/RobertGumpert/gotasker"
 	"github.com/RobertGumpert/gotasker/itask"
 	"time"
 )
@@ -73,9 +74,23 @@ func (steward *Steward) CreateTaskAndRun(constructor itask.TaskConstructor) (tas
 }
 
 func (steward *Steward) CreateTriggerAndRun(triggerConstructor itask.TaskConstructor, dependentConstructors ...itask.TaskConstructor) (trigger itask.ITask, err error) {
+	var (
+		dependents = make([]itask.ITask, 0)
+	)
+	trigger, err = triggerConstructor()
+	if err != nil {
+		return nil, err
+	}
+	for _, constructor := range dependentConstructors {
+		dependent, err := constructor()
+		if err != nil {
+			return nil, err
+		}
+		dependents = append(dependents, dependent)
+	}
 	trigger, err = steward.ModifyTaskAsTrigger(
-		triggerConstructor,
-		dependentConstructors...,
+		trigger,
+		dependents...,
 	)
 	err = steward.manager.RunTask(trigger)
 	if err != nil {
@@ -89,6 +104,37 @@ func (steward *Steward) UpdateTask(key string, updateContext interface{}) (err e
 		key,
 		updateContext,
 	)
+}
+
+func (steward *Steward) TriggerIsCompleted(trigger itask.ITask) (isCompleted bool, dependentTasksCompletedFlags map[string]bool, err error) {
+	dependentTasksCompletedFlags = make(map[string]bool)
+	//
+	if isTrigger, dependents := trigger.IsTrigger(); !isTrigger {
+		return false, nil, gotasker.ErrorTaskIsNotExist
+	} else {
+		countCompletedDependentTasks := 0
+		for _, dependent := range dependents {
+			if isDependent, trgr := dependent.IsDependent(); !isDependent {
+				return false, nil, gotasker.ErrorTaskIsNotExist
+			} else {
+				if trgr.GetKey() != trigger.GetKey() {
+					return false, nil, gotasker.ErrorTaskIsNotExist
+				}
+			}
+			if dependent.GetState().IsCompleted() {
+				countCompletedDependentTasks++
+				dependentTasksCompletedFlags[dependent.GetKey()] = true
+			} else {
+				dependentTasksCompletedFlags[dependent.GetKey()] = false
+			}
+		}
+		if countCompletedDependentTasks == len(dependents) {
+			isCompleted = true
+		} else {
+			isCompleted = false
+		}
+	}
+	return isCompleted, dependentTasksCompletedFlags, nil
 }
 
 func (steward *Steward) FindTasksByKeys(keys map[string]struct{}) (findTasks []itask.ITask) {
