@@ -6,6 +6,7 @@ type ISteward interface {
 	//
 	// PROPERTIES
 	//
+	GetSizeQueue() (size int64)
 	FindTasksByKeys(keys map[string]struct{}) (findTasks []ITask)
 	FindTaskByKey(key string) (findTask ITask, err error)
 	GetTasksSavingOrCompleted() (tasks []ITask)

@@ -215,8 +215,19 @@ func (manager *implementTaskManager) RunTask(task itask.ITask) (err error) {
 	}
 	log.Println("-> GOTASKER: START ADD TASK [", task.GetKey(), "]-----------------------------------------------------")
 	manager.sliceTasksInQueue = append(manager.sliceTasksInQueue, task)
-	errRunning := task.GetEventRunTask()(task)
-	if errRunning == nil {
+	doAsTaskDefer, deleteTask := task.GetEventRunTask()(task)
+	if deleteTask {
+		mp := make(map[string]struct{})
+		mp[task.GetKey()] = struct{}{}
+		if isTrigger {
+			for _, dependent := range dependents {
+				mp[dependent.GetKey()] = struct{}{}
+			}
+		}
+		manager.DeleteTasksByKeys(mp)
+		return
+	}
+	if doAsTaskDefer {
 		log.Println("\t\t\t:GOTASKER: TASK IS RUN [", task.GetKey(), "]")
 		task.GetState().SetRunnable(true)
 		task.GetState().SetDefer(false)
@@ -234,9 +245,7 @@ func (manager *implementTaskManager) RunDeferTasks() {
 	defer manager.mx.Unlock()
 	//
 	for t := 0; t < len(manager.sliceTasksInQueue); t++ {
-		//log.Println("\t\t\t-юGOTASKER: DEFER TASK ATTEMPT TO START [", manager.sliceTasksInQueue[t].GetKey(), "] ")
 		if manager.sliceTasksInQueue[t].GetState().IsCompleted() {
-			//log.Println("\t\t\t\t\t\t->DEFER [", manager.sliceTasksInQueue[t].GetKey(), "] IS COMPLETED")
 			continue
 		}
 		if isDependent, trigger := manager.sliceTasksInQueue[t].IsDependent(); isDependent == true {
@@ -245,18 +254,16 @@ func (manager *implementTaskManager) RunDeferTasks() {
 			}
 		}
 		if manager.sliceTasksInQueue[t].GetState().IsRunnable() == true {
-			//log.Println("\t\t\t\t\t\t->DEFER [", manager.sliceTasksInQueue[t].GetKey(), "] IS RUNNABLE")
 			continue
 		}
 		if manager.sliceTasksInQueue[t].GetState().IsDefer() == false {
-			//log.Println("\t\t\t\t\t\t->DEFER [", manager.sliceTasksInQueue[t].GetKey(), "] ISN'T DEFER")
 			continue
 		}
-		if err := manager.sliceTasksInQueue[t].GetEventRunTask()(manager.sliceTasksInQueue[t]); err == nil {
+		task := manager.sliceTasksInQueue[t]
+		doAsTaskDefer, _ := task.GetEventRunTask()(task)
+		if doAsTaskDefer == false {
 			manager.sliceTasksInQueue[t].GetState().SetRunnable(true)
 			log.Println("\t\t\t->GOTASKER: DEFER TASK IS RUN [", manager.sliceTasksInQueue[t].GetKey(), "]")
-		} else {
-			//log.Println("\t\t\t->GOTASKER: DEFER TASK ISN'T RUN [", manager.sliceTasksInQueue[t].GetKey(), "]")
 		}
 	}
 }
@@ -269,22 +276,19 @@ func (manager *implementTaskManager) RunDependentTasks(task itask.ITask) {
 		if task.GetState().IsCompleted() == false {
 			return
 		}
-		for d := 0; d < len(dependentsTasks); d++ {
-			if isDependent, _ := dependentsTasks[d].IsDependent(); isDependent {
-				//log.Println("\t\t\t->GOTASKER: DEPENDENT TASK KEY ATTEMPT TO START [", dependentsTasks[d].GetKey(), "]")
-				if dependentsTasks[d].GetState().IsCompleted() {
-					//log.Println("\t\t\t\t\t\t->DEPENDENT [", dependentsTasks[d].GetKey(), "] ISN'T COMPLETED")
+		for i := 0; i < len(dependentsTasks); i++ {
+			if isDependent, _ := dependentsTasks[i].IsDependent(); isDependent {
+				if dependentsTasks[i].GetState().IsCompleted() {
 					continue
 				}
-				if dependentsTasks[d].GetState().IsRunnable() {
-					//log.Println("\t\t\t\t\t\t->DEPENDENT [", dependentsTasks[d].GetKey(), "] ISN'T RUNNABLE")
+				if dependentsTasks[i].GetState().IsRunnable() {
 					continue
 				}
-				if err := dependentsTasks[d].GetEventRunTask()(dependentsTasks[d]); err == nil {
-					dependentsTasks[d].GetState().SetRunnable(true)
-					log.Println("\t\t\t->GOTASKER: DEPENDENT TASK IS RUN [", dependentsTasks[d].GetKey(), "] ")
-				} else {
-					//log.Println("\t\t\t->GOTASKER: DEPENDENT TASK ISN'T RUN [", dependentsTasks[d].GetKey(), "]")
+				task := dependentsTasks[i]
+				doAsTaskDefer, _ := task.GetEventRunTask()(task)
+				if doAsTaskDefer == false {
+					dependentsTasks[i].GetState().SetRunnable(true)
+					log.Println("\t\t\t->GOTASKER: DEPENDENT TASK IS RUN [", dependentsTasks[i].GetKey(), "] ")
 				}
 			}
 		}

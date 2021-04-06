@@ -20,6 +20,10 @@ func NewSteward(sizeOfQueue int64, timeoutForRunWithTimer time.Duration, eventMa
 	return steward
 }
 
+func (steward *Steward) GetSizeQueue() (size int64) {
+	return int64(len(steward.manager.sliceTasksInQueue))
+}
+
 func (steward *Steward) CanAddTask(countTasks int64) (havePlaceInQueue bool) {
 	if (int64(len(steward.manager.sliceTasksInQueue)) + countTasks) < steward.manager.GetSizeQueue() {
 		return true
