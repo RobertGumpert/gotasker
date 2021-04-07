@@ -1,44 +1,36 @@
 package itask
 
-import "time"
-
-type EventManageTasks func(task ITask) (deleteTasks, saveTasks map[string]struct{})
+type EventManageTasks func(task ITask) (deleteTasks map[string]struct{})
 
 type IManager interface {
-	//
-	// PROPERTIES
-	//
-	SetSizeQueue(size int64)
-	GetSizeQueue() (size int64)
-	UseTimeoutForRunning(timeout time.Duration)
-	SetEventManageTasks(event EventManageTasks)
-	GetEventManageTasks() (event EventManageTasks)
-	//
-	// CREATE TASK
-	//
 	CreateTask(t Type, key string, send, update, fields interface{}, eventRunTask EventRunTask, eventUpdateState EventUpdateTaskState) (task ITask, err error)
 	ModifyTaskAsTrigger(trigger ITask, dependents ...ITask) (task ITask, err error)
 	//
-	// MANAGE TASKS
-	//
-	UpdateTask(key string, updateContext interface{}) (err error)
-	DeleteTasksByKeys(keys map[string]struct{})
-	FindTasksByKeys(keys map[string]struct{}) (findTasks []ITask)
-	FindTaskByKey(key string) (findTask ITask, err error)
-	GetTasksSavingOrCompleted() (tasks []ITask)
-	GetTasksInQueue() (tasks []ITask)
-	GetTasksCompletedWithError() (tasks []ITask)
-	//
 	// RUN TASKS
 	//
-	RunTask(task ITask) (err error)
-	RunDeferTasks()
+	RunTask(task ITask) (doTaskAsDefer, sendToErrorChannel bool)
+	AddTaskAndTask(task ITask) (err error)
 	RunDependentTasks(task ITask)
+	RunDeferTasks(runDependentTasks bool)
 	RunDeferByTimer()
 	//
-	// MANAGE QUEUES
+	// MANAGE TASKS
 	//
-	ManageUpdateTasks()
-	ManageCompletedTasks()
+	SendErrorToErrorChannel(err IError)
+	SetUpdateForTask(key string, somethingUpdateContext interface{})
+	ManageUpdates()
+	ManageCompleted()
+	//
+	// PROPERTIES
+	//
+	GetChannelError() (channelForSendErrors chan IError)
+	GetSizeQueue() (sizeOfQueue int64)
+	QueueIsFilled(countTasks int64) (isFilled bool)
+	DeleteTasksByKeys(keys map[string]struct{})
+	FindTaskByKey(key string) (findTask ITask, err error)
+	FindRunBanTriggers() (runBanTriggers []ITask)
+	FindRunBanSimpleTasks() (runBanTasks []ITask)
+	FindDependentTasksIfTriggerNotExist(triggerKey string) (dependentsTasks []ITask)
+	SetRunBanForTasks(tasks ...ITask)
+	TriggerIsCompleted(trigger ITask) (isCompleted bool, dependentTasks map[string]bool, err error)
 }
-

@@ -1,8 +1,12 @@
 package itask
 
-type EventUpdateTaskState func(task ITask, interProgramUpdateContext interface{}) (err error)
+
+type EventUpdateTaskState func(task ITask, somethingUpdateContext interface{}) (err error, sendToErrorChannel bool)
 
 type IState interface {
+	SetRunBan(flag bool)
+	IsRunBan() (flag bool)
+	//
 	SetRunnable(flag bool)
 	IsRunnable() (flag bool)
 	//
@@ -27,3 +31,4 @@ type IState interface {
 	SetEventUpdateState(event EventUpdateTaskState)
 	GetEventUpdateState() (event EventUpdateTaskState)
 }
+

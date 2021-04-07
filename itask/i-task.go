@@ -1,7 +1,8 @@
 package itask
 
+
 type Type int
-type EventRunTask func(task ITask) (doAsTaskDefer, deleteTask bool)
+type EventRunTask func(task ITask) (doTaskAsDefer, sendToErrorChannel bool, err error)
 
 type ITask interface {
 	SetType(t Type)
