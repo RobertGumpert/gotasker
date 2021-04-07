@@ -287,6 +287,7 @@ func (manager *iManager) SetUpdateForTask(key string, somethingUpdateContext int
 		updateTuple.SetError(iErr)
 	} else {
 		updateTuple.SetTask(task)
+		updateTuple.SetSomethingUpdateContext(somethingUpdateContext)
 	}
 	manager.channelForManageUpdateTasks <- updateTuple
 }
