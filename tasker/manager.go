@@ -268,6 +268,7 @@ func (manager *iManager) TriggerIsCompleted(trigger itask.ITask) (isCompleted bo
 //
 
 func (manager *iManager) SendErrorToErrorChannel(err itask.IError) {
+	log.Println("->GOTASKER: TASK [", err.GetTaskKey(), "] SEND ERROR. ")
 	manager.channelForSendErrors <- err
 }
 
@@ -307,6 +308,7 @@ func (manager *iManager) ManageUpdates() {
 		err, sendToErrorChannel := event(task, somethingUpdateContext)
 		if err != nil {
 			if sendToErrorChannel {
+				log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING AFTER UPDATE. ")
 				manager.SetRunBanForTasks(task)
 				manager.SendErrorToErrorChannel(iError{
 					err:     err,
@@ -332,6 +334,7 @@ func (manager *iManager) ManageCompleted() {
 		if err != nil {
 			continue
 		}
+		log.Println("->GOTASKER: TASK [", task.GetKey(), "] WAS COMPLETED. ")
 		tasksKeysForDelete := manager.eventManageTasks(task)
 		if isTrigger, _ = task.IsTrigger(); isTrigger {
 			manager.RunDependentTasks(task)
@@ -357,6 +360,7 @@ func (manager *iManager) RunTask(task itask.ITask) (doTaskAsDefer, sendToErrorCh
 	doTaskAsDefer, sendToErrorChannel, err := event(task)
 	if err != nil {
 		if sendToErrorChannel {
+			log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING. ")
 			manager.SetRunBanForTasks(task)
 			manager.SendErrorToErrorChannel(iError{
 				err:     err,
@@ -413,6 +417,7 @@ func (manager *iManager) RunDependentTasks(task itask.ITask) {
 	if !task.GetState().IsCompleted() {
 		return
 	}
+	log.Println("->GOTASKER: RUN DEPENDENT TASKS. ")
 	for next := 0; next < len(dependentsTasks); next++ {
 		somethingTask := dependentsTasks[next]
 		if somethingTask == nil {
@@ -435,10 +440,12 @@ func (manager *iManager) RunDependentTasks(task itask.ITask) {
 		doTaskAsDefer, sendToErrorChannel := manager.RunTask(somethingTask)
 		if !sendToErrorChannel {
 			if !doTaskAsDefer {
+				log.Println("->\t\t\t[", task.GetKey(), "] IS RUN AS DEPENDENT")
 				somethingTask.GetState().SetRunnable(true)
 			}
 		}
 	}
+	log.Println("->GOTASKER: RUN DEPENDENT TASKS COMPLETED. ")
 	return
 }
 
@@ -449,6 +456,7 @@ func (manager *iManager) RunDeferTasks(runDependentTasks bool) {
 		log.Println("->+++++++++++GOTASKER: QUEUE IS EMPTY. READY GETTING NEXT TASKS+++++++++++")
 		return
 	}
+	log.Println("->GOTASKER: RUN DEFER TASKS. ")
 	for next := 0; next < len(manager.sliceTask); next++ {
 		task := manager.sliceTask[next]
 		if task == nil {
@@ -476,10 +484,12 @@ func (manager *iManager) RunDeferTasks(runDependentTasks bool) {
 		doTaskAsDefer, sendToErrorChannel := manager.RunTask(task)
 		if !sendToErrorChannel {
 			if !doTaskAsDefer {
+				log.Println("->\t\t\t[", task.GetKey(), "] IS RUN AS DEFER")
 				task.GetState().SetRunnable(true)
 			}
 		}
 	}
+	log.Println("->GOTASKER: RUN DEFER TASKS COMPLETED. ")
 }
 
 func (manager *iManager) RunDeferByTimer() {
