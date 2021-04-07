@@ -9,34 +9,34 @@ type iTuple struct {
 	err                    itask.IError
 }
 
-func (t iTuple) SetError(err itask.IError) {
+func (t *iTuple) SetError(err itask.IError) {
 	t.err = err
 }
 
-func (t iTuple) SetTaskKey(key string) {
+func (t *iTuple)  SetTaskKey(key string) {
 	t.taskKey = key
 }
 
-func (t iTuple) SetSomethingUpdateContext(somethingUpdateContext interface{}) {
+func (t *iTuple)  SetSomethingUpdateContext(somethingUpdateContext interface{}) {
 	t.somethingUpdateContext = somethingUpdateContext
 }
 
-func (t iTuple) SetTask(task itask.ITask) {
+func (t *iTuple)  SetTask(task itask.ITask) {
 	t.task = task
 }
 
-func (t iTuple) GetError() (err itask.IError) {
+func (t *iTuple)  GetError() (err itask.IError) {
 	return t.err
 }
 
-func (t iTuple) GetTAskKey() (taskKey string) {
+func (t *iTuple)  GetTAskKey() (taskKey string) {
 	return t.taskKey
 }
 
-func (t iTuple) GetSomethingUpdateContext() (somethingUpdateContext interface{}) {
+func (t *iTuple)  GetSomethingUpdateContext() (somethingUpdateContext interface{}) {
 	return t.somethingUpdateContext
 }
 
-func (t iTuple) GetTask() (task itask.ITask) {
+func (t *iTuple)  GetTask() (task itask.ITask) {
 	return t.task
 }

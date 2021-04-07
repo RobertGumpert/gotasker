@@ -276,8 +276,8 @@ func (manager *iManager) SetUpdateForTask(key string, somethingUpdateContext int
 	manager.mx.Lock()
 	defer manager.mx.Unlock()
 	var (
-		updateTuple = iTuple{}
-		iErr        = iError{}
+		updateTuple = &iTuple{}
+		iErr        = &iError{}
 	)
 	updateTuple.SetTaskKey(key)
 	task, err := manager.FindTaskByKey(key)
@@ -310,7 +310,7 @@ func (manager *iManager) ManageUpdates() {
 			if sendToErrorChannel {
 				log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING AFTER UPDATE. ")
 				manager.SetRunBanForTasks(task)
-				manager.SendErrorToErrorChannel(iError{
+				manager.SendErrorToErrorChannel(&iError{
 					err:     err,
 					taskKey: task.GetKey(),
 					task:    task,
@@ -362,7 +362,7 @@ func (manager *iManager) RunTask(task itask.ITask) (doTaskAsDefer, sendToErrorCh
 		if sendToErrorChannel {
 			log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING. ")
 			manager.SetRunBanForTasks(task)
-			manager.SendErrorToErrorChannel(iError{
+			manager.SendErrorToErrorChannel(&iError{
 				err:     err,
 				taskKey: task.GetKey(),
 				task:    task,
