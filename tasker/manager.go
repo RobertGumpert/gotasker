@@ -395,13 +395,13 @@ func (manager *iManager) AddTaskAndTask(task itask.ITask) (err error) {
 	doTaskAsDefer, sendToErrorChannel = manager.RunTask(task)
 	if !sendToErrorChannel {
 		if doTaskAsDefer {
-			log.Println("\t\t\t:GOTASKER: TASK IS RUN [", task.GetKey(), "]")
-			task.GetState().SetRunnable(true)
-			task.GetState().SetDefer(false)
-		} else {
 			log.Println("\t\t\t:GOTASKER: TASK IS DEFER [", task.GetKey(), "]")
 			task.GetState().SetRunnable(false)
 			task.GetState().SetDefer(true)
+		} else {
+			log.Println("\t\t\t:GOTASKER: TASK IS RUN [", task.GetKey(), "]")
+			task.GetState().SetRunnable(true)
+			task.GetState().SetDefer(false)
 		}
 	}
 	return nil
