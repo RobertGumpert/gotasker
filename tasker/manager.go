@@ -441,7 +441,7 @@ func (manager *iManager) RunDependentTasks(task itask.ITask) {
 		doTaskAsDefer, sendToErrorChannel := manager.RunTask(somethingTask)
 		if !sendToErrorChannel {
 			if !doTaskAsDefer {
-				log.Println("->\t\t\t[", task.GetKey(), "] IS RUN AS DEPENDENT")
+				log.Println("->\t\t\t[", somethingTask.GetKey(), "] IS RUN AS DEPENDENT")
 				somethingTask.GetState().SetRunnable(true)
 			}
 		}
