@@ -31,6 +31,7 @@ type IManager interface {
 	FindRunBanTriggers() (runBanTriggers []ITask)
 	FindRunBanSimpleTasks() (runBanTasks []ITask)
 	FindDependentTasksIfTriggerNotExist(triggerKey string) (dependentsTasks []ITask)
-	SetRunBanForTasks(tasks ...ITask)
+	SetRunBan(tasks ...ITask)
+	TakeOffRunBanInQueue(tasks ...ITask)
 	TriggerIsCompleted(trigger ITask) (isCompleted bool, dependentTasks map[string]bool, err error)
 }

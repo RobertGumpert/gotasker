@@ -207,7 +207,7 @@ func (manager *iManager) FindDependentTasksIfTriggerNotExist(triggerKey string) 
 	return dependentsTasks
 }
 
-func (manager *iManager) SetRunBanForTasks(tasks ...itask.ITask) {
+func (manager *iManager) SetRunBan(tasks ...itask.ITask) {
 	for next := 0; next < len(tasks); next++ {
 		task := tasks[next]
 		stateTask := task.GetState()
@@ -227,6 +227,61 @@ func (manager *iManager) SetRunBanForTasks(tasks ...itask.ITask) {
 		}
 	}
 	return
+}
+
+func (manager *iManager) SetRunBanInQueue(tasks ...itask.ITask) {
+	var(
+		taskKeys = make(map[string]struct{})
+	)
+	for next := 0; next < len(tasks); next++ {
+		taskKeys[tasks[next].GetKey()] = struct{}{}
+	}
+	for next := 0; next < len(manager.sliceTask); next++ {
+		task := tasks[next]
+		stateTask := task.GetState()
+		stateTask.SetRunBan(true)
+		if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
+			for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
+				somethingTask := (*dependentsTasks)[nextDependent]
+				if somethingTask == nil {
+					continue
+				}
+				isDependent, _ := somethingTask.IsDependent()
+				if !isDependent {
+					continue
+				}
+				somethingTask.GetState().SetRunBan(true)
+			}
+		}
+	}
+	return
+}
+
+func (manager *iManager) TakeOffRunBanInQueue(tasks ...itask.ITask) {
+	var(
+		taskKeys = make(map[string]struct{})
+	)
+	for next := 0; next < len(tasks); next++ {
+		taskKeys[tasks[next].GetKey()] = struct{}{}
+	}
+	for next := 0; next < len(manager.sliceTask); next++ {
+		task := tasks[next]
+		stateTask := task.GetState()
+		stateTask.SetRunBan(false)
+		if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
+			for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
+				somethingTask := (*dependentsTasks)[nextDependent]
+				if somethingTask == nil {
+					continue
+				}
+				isDependent, _ := somethingTask.IsDependent()
+				if !isDependent {
+					continue
+				}
+				somethingTask.GetState().SetRunBan(false)
+			}
+		}
+	}
 }
 
 func (manager *iManager) TriggerIsCompleted(trigger itask.ITask) (isCompleted bool, dependentTasks map[string]bool, err error) {
@@ -298,7 +353,7 @@ func (manager *iManager) ManageUpdates() {
 		if iErr != nil {
 			dependentsTasks := manager.FindDependentTasksIfTriggerNotExist(iErr.GetTaskKey())
 			if len(dependentsTasks) != 0 {
-				manager.SetRunBanForTasks(dependentsTasks...)
+				manager.SetRunBanInQueue(dependentsTasks...)
 			}
 			manager.SendErrorToErrorChannel(iErr)
 			continue
@@ -310,7 +365,7 @@ func (manager *iManager) ManageUpdates() {
 		if err != nil {
 			if sendToErrorChannel {
 				log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING AFTER UPDATE. ")
-				manager.SetRunBanForTasks(task)
+				manager.SetRunBanInQueue(task)
 				manager.SendErrorToErrorChannel(&iError{
 					err:     err,
 					taskKey: task.GetKey(),
@@ -362,7 +417,7 @@ func (manager *iManager) RunTask(task itask.ITask) (doTaskAsDefer, sendToErrorCh
 	if err != nil {
 		if sendToErrorChannel {
 			log.Println("->GOTASKER: TASK [", task.GetKey(), "] GET BAN FOR RUNNING. ")
-			manager.SetRunBanForTasks(task)
+			manager.SetRunBanInQueue(task)
 			manager.SendErrorToErrorChannel(&iError{
 				err:     err,
 				taskKey: task.GetKey(),
