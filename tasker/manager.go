@@ -213,8 +213,8 @@ func (manager *iManager) SetRunBanForTasks(tasks ...itask.ITask) {
 		stateTask := task.GetState()
 		stateTask.SetRunBan(true)
 		if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
-			for nextDependent := 0; nextDependent < len(dependentsTasks); nextDependent++ {
-				somethingTask := dependentsTasks[nextDependent]
+			for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
+				somethingTask := (*dependentsTasks)[nextDependent]
 				if somethingTask == nil {
 					continue
 				}
@@ -235,7 +235,7 @@ func (manager *iManager) TriggerIsCompleted(trigger itask.ITask) (isCompleted bo
 		return false, nil, gotasker.ErrorTaskIsNotExist
 	} else {
 		countCompletedDependentTasks := 0
-		for _, dependent := range dependents {
+		for _, dependent := range *dependents {
 			if isDependent, trgr := dependent.IsDependent(); !isDependent {
 				return false, nil, gotasker.ErrorTaskIsNotExist
 			} else {
@@ -250,7 +250,7 @@ func (manager *iManager) TriggerIsCompleted(trigger itask.ITask) (isCompleted bo
 				dependentTasks[dependent.GetKey()] = false
 			}
 		}
-		if countCompletedDependentTasks == len(dependents) {
+		if countCompletedDependentTasks == len(*dependents) {
 			isCompleted = true
 		} else {
 			isCompleted = false
@@ -377,13 +377,13 @@ func (manager *iManager) AddTaskAndTask(task itask.ITask) (err error) {
 	manager.mx.Lock()
 	defer manager.mx.Unlock()
 	var (
-		dependents                                             []itask.ITask
+		dependents                                             *[]itask.ITask
 		isTrigger, isFilled, doTaskAsDefer, sendToErrorChannel bool
 		countTasks                                             = int64(1)
 	)
 	isTrigger, dependents = task.IsTrigger()
 	if isTrigger {
-		countTasks += int64(len(dependents))
+		countTasks += int64(len(*dependents))
 	}
 	isFilled = manager.QueueIsFilled(countTasks)
 	if isFilled {
@@ -391,7 +391,7 @@ func (manager *iManager) AddTaskAndTask(task itask.ITask) (err error) {
 	}
 	manager.sliceTask = append(manager.sliceTask, task)
 	if isTrigger {
-		manager.sliceTask = append(manager.sliceTask, dependents...)
+		manager.sliceTask = append(manager.sliceTask, *dependents...)
 	}
 	doTaskAsDefer, sendToErrorChannel = manager.RunTask(task)
 	if !sendToErrorChannel {
@@ -419,8 +419,8 @@ func (manager *iManager) RunDependentTasks(task itask.ITask) {
 		return
 	}
 	log.Println("->GOTASKER: RUN DEPENDENT TASKS. ")
-	for next := 0; next < len(dependentsTasks); next++ {
-		somethingTask := dependentsTasks[next]
+	for next := 0; next < len(*dependentsTasks); next++ {
+		somethingTask := (*dependentsTasks)[next]
 		if somethingTask == nil {
 			continue
 		}

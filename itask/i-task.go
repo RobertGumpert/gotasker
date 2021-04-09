@@ -15,7 +15,7 @@ type ITask interface {
 	GetState() (state IState)
 	//
 	ModifyTaskAsTrigger(dependent []ITask)
-	IsTrigger() (flag bool, dependent []ITask)
+	IsTrigger() (flag bool, dependent *[]ITask)
 	//
 	ModifyTaskAsDependent(trigger ITask)
 	IsDependent() (flag bool, trigger ITask)

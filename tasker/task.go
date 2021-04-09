@@ -52,8 +52,8 @@ func (tsk *iTask) ModifyTaskAsTrigger(dependent []itask.ITask) {
 	tsk.dependents = dependent
 }
 
-func (tsk *iTask) IsTrigger() (flag bool, dependent []itask.ITask) {
-	return tsk.isTrigger, tsk.dependents
+func (tsk *iTask) IsTrigger() (flag bool, dependent *[]itask.ITask) {
+	return tsk.isTrigger, &tsk.dependents
 }
 
 func (tsk *iTask) ModifyTaskAsDependent(trigger itask.ITask) {
