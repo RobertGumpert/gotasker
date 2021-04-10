@@ -237,20 +237,22 @@ func (manager *iManager) SetRunBanInQueue(tasks ...itask.ITask) {
 		taskKeys[tasks[next].GetKey()] = struct{}{}
 	}
 	for next := 0; next < len(manager.sliceTask); next++ {
-		task := tasks[next]
-		stateTask := task.GetState()
-		stateTask.SetRunBan(true)
-		if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
-			for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
-				somethingTask := (*dependentsTasks)[nextDependent]
-				if somethingTask == nil {
-					continue
+		task := manager.sliceTask[next]
+		if _, exist := taskKeys[task.GetKey()]; exist {
+			stateTask := task.GetState()
+			stateTask.SetRunBan(false)
+			if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
+				for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
+					somethingTask := (*dependentsTasks)[nextDependent]
+					if somethingTask == nil {
+						continue
+					}
+					isDependent, _ := somethingTask.IsDependent()
+					if !isDependent {
+						continue
+					}
+					somethingTask.GetState().SetRunBan(false)
 				}
-				isDependent, _ := somethingTask.IsDependent()
-				if !isDependent {
-					continue
-				}
-				somethingTask.GetState().SetRunBan(true)
 			}
 		}
 	}
@@ -265,20 +267,22 @@ func (manager *iManager) TakeOffRunBanInQueue(tasks ...itask.ITask) {
 		taskKeys[tasks[next].GetKey()] = struct{}{}
 	}
 	for next := 0; next < len(manager.sliceTask); next++ {
-		task := tasks[next]
-		stateTask := task.GetState()
-		stateTask.SetRunBan(false)
-		if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
-			for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
-				somethingTask := (*dependentsTasks)[nextDependent]
-				if somethingTask == nil {
-					continue
+		task := manager.sliceTask[next]
+		if _, exist := taskKeys[task.GetKey()]; exist {
+			stateTask := task.GetState()
+			stateTask.SetRunBan(false)
+			if isTrigger, dependentsTasks := task.IsTrigger(); isTrigger {
+				for nextDependent := 0; nextDependent < len(*dependentsTasks); nextDependent++ {
+					somethingTask := (*dependentsTasks)[nextDependent]
+					if somethingTask == nil {
+						continue
+					}
+					isDependent, _ := somethingTask.IsDependent()
+					if !isDependent {
+						continue
+					}
+					somethingTask.GetState().SetRunBan(false)
 				}
-				isDependent, _ := somethingTask.IsDependent()
-				if !isDependent {
-					continue
-				}
-				somethingTask.GetState().SetRunBan(false)
 			}
 		}
 	}
