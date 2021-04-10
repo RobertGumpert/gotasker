@@ -230,7 +230,7 @@ func (manager *iManager) SetRunBan(tasks ...itask.ITask) {
 }
 
 func (manager *iManager) SetRunBanInQueue(tasks ...itask.ITask) {
-	var(
+	var (
 		taskKeys = make(map[string]struct{})
 	)
 	for next := 0; next < len(tasks); next++ {
@@ -260,7 +260,7 @@ func (manager *iManager) SetRunBanInQueue(tasks ...itask.ITask) {
 }
 
 func (manager *iManager) TakeOffRunBanInQueue(tasks ...itask.ITask) {
-	var(
+	var (
 		taskKeys = make(map[string]struct{})
 	)
 	for next := 0; next < len(tasks); next++ {
@@ -432,6 +432,16 @@ func (manager *iManager) RunTask(task itask.ITask) (doTaskAsDefer, sendToErrorCh
 	return doTaskAsDefer, sendToErrorChannel
 }
 
+func (manager *iManager) addDependents(dependents *[]itask.ITask) {
+	for next := 0; next < len(*dependents); next++ {
+		dependent := (*dependents)[next]
+		manager.sliceTask = append(manager.sliceTask, dependent)
+		if dependentIsTrigger, dp := dependent.IsTrigger(); dependentIsTrigger {
+			manager.addDependents(dp)
+		}
+	}
+}
+
 func (manager *iManager) AddTaskAndTask(task itask.ITask) (err error) {
 	manager.mx.Lock()
 	defer manager.mx.Unlock()
@@ -450,7 +460,7 @@ func (manager *iManager) AddTaskAndTask(task itask.ITask) (err error) {
 	}
 	manager.sliceTask = append(manager.sliceTask, task)
 	if isTrigger {
-		manager.sliceTask = append(manager.sliceTask, *dependents...)
+		manager.addDependents(dependents)
 	}
 	doTaskAsDefer, sendToErrorChannel = manager.RunTask(task)
 	if !sendToErrorChannel {
