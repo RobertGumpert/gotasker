@@ -36,3 +36,9 @@ type IManager interface {
 	TakeOffRunBanInQueue(tasks ...ITask)
 	TriggerIsCompleted(trigger ITask) (isCompleted bool, dependentTasks map[string]bool, err error)
 }
+
+type ITaskEventFacade interface {
+	EventManageTasks(task ITask) (deleteTasks map[string]struct{})
+	EventUpdateTaskState(task ITask, somethingUpdateContext interface{}) (err error, sendToErrorChannel bool)
+	EventRunTask(task ITask) (doTaskAsDefer, sendToErrorChannel bool, err error)
+}
