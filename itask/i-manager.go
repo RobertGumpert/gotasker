@@ -16,6 +16,7 @@ type IManager interface {
 	//
 	// MANAGE TASKS
 	//
+	CreateError(e error, taskKey string, task ITask) (err IError)
 	SendErrorToErrorChannel(err IError)
 	SetUpdateForTask(key string, somethingUpdateContext interface{})
 	ManageUpdates()

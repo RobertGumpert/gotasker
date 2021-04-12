@@ -326,6 +326,14 @@ func (manager *iManager) TriggerIsCompleted(trigger itask.ITask) (isCompleted bo
 //
 //
 
+func (manager *iManager) CreateError(e error, taskKey string, task itask.ITask) (err itask.IError) {
+	return &iError{
+		err:     nil,
+		taskKey: "",
+		task:    nil,
+	}
+}
+
 func (manager *iManager) SendErrorToErrorChannel(err itask.IError) {
 	log.Println("->GOTASKER: TASK [", err.GetTaskKey(), "] SEND ERROR. ")
 	manager.channelForSendErrors <- err
