@@ -410,7 +410,7 @@ func (manager *iManager) ManageCompleted() {
 			if len(tasksKeysForDelete) != 0 {
 				manager.DeleteTasksByKeys(tasksKeysForDelete)
 			}
-			manager.RunDeferTasks(false)
+			manager.RunDeferTasks(true)
 		}
 	}
 }
